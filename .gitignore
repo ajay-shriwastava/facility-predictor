@@ -47,5 +47,9 @@ Thumbs.db
 # Jupyter
 .ipynb_checkpoints/
 
+# MLflow
+mlruns/
+mlflow.db
+
 # Logs
 *.log

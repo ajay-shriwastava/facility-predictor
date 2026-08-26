@@ -357,18 +357,6 @@ def evaluate(
             lines.append(f"{fac}/{ud.strftime('%a')}/{ud.strftime('%H:%M')}/{bd.strftime('%a %H:%M')}")
         past_str.append(" | ".join(lines) if lines else "No history")
 
-    # ── Match indicators ──────────────────────────────────────────────────────
-    fac_match  = [p == a for p, a in zip(pred_facility, act_facility)]
-    dow_match  = [p == a for p, a in zip(pred_dow,      act_dow)]
-    hour_match = [abs(int(p[:2]) - int(a[:2])) <= 1
-                  for p, a in zip(pred_hour_str, act_hour_str)]
-    nudge_match = [
-        abs(float(lead_pred[i]) - float(y_test["lead_time_hours"].iloc[i])) <= 2
-        for i in range(len(y_test))
-    ]
-    score = [sum([fm, dm, hm, nm]) for fm, dm, hm, nm
-             in zip(fac_match, dow_match, hour_match, nudge_match)]
-
     # ── Metrics ───────────────────────────────────────────────────────────────
     y_fac_true = y_test["facility_id"].map(FAC_TO_IDX).astype(int).values
     metrics = {
@@ -379,27 +367,23 @@ def evaluate(
         "hour_mae":          float(mean_absolute_error(y_test["usage_hour"], hour_pred)),
         "hour_within_1hr":   float(np.mean(np.abs(y_test["usage_hour"].values - hour_pred) <= 1)),
         "notification_mae":  float(mean_absolute_error(y_test["lead_time_hours"], lead_pred)),
-        "exact_match_rate":  float(np.mean([s == 4 for s in score])),
     }
 
     # ── Write review CSV ──────────────────────────────────────────────────────
     review = pd.DataFrame({
-        "booking_id":         raw_test["booking_id"].values,
-        "resident_id":        raw_test["resident_id"].values,
-        "past_bookings":      past_str,
-        "pred_facility":      pred_facility,
-        "pred_day":           pred_dow,
-        "pred_hour":          pred_hour_str,
-        "pred_nudge":         pred_nudge,
-        "actual_facility":    act_facility,
-        "actual_day":         act_dow,
-        "actual_hour":        act_hour_str,
-        "actual_booked_at":   act_booked_at,
-        "fac_match":          fac_match,
-        "dow_match":          dow_match,
-        "hour_match":         hour_match,
-        "nudge_match":        nudge_match,
-        "score":              [f"{s} of 4" for s in score],
+        "booking_id":              raw_test["booking_id"].values,
+        "resident_id":             raw_test["resident_id"].values,
+        "past_bookings":           past_str,
+        "pred_facility":           pred_facility,
+        "pred_day":                pred_dow,
+        "pred_hour":               pred_hour_str,
+        "pred_nudge":              pred_nudge,
+        "pred_lead_time_hours":    lead_pred,
+        "actual_facility":         act_facility,
+        "actual_day":              act_dow,
+        "actual_hour":             act_hour_str,
+        "actual_booked_at":        act_booked_at,
+        "actual_lead_time_hours":  y_test["lead_time_hours"].values,
     })
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -411,7 +395,6 @@ def evaluate(
     print(f"  Day Accuracy      : {metrics['day_accuracy']:.3f}")
     print(f"  Hour MAE          : {metrics['hour_mae']:.2f} hrs")
     print(f"  Notification MAE  : {metrics['notification_mae']:.2f} hrs")
-    print(f"  Exact Match Rate  : {metrics['exact_match_rate']:.3f}")
 
     mlflow.set_experiment("facility-predictor")
     with mlflow.start_run(run_name="cascade_evaluation"):
@@ -423,26 +406,7 @@ def evaluate(
             "eval_hour_mae":          metrics["hour_mae"],
             "eval_hour_within_1hr":   metrics["hour_within_1hr"],
             "eval_notification_mae":  metrics["notification_mae"],
-            "eval_exact_match_rate":  metrics["exact_match_rate"],
         })
         mlflow.log_artifact(str(output_path))
 
     return metrics
-
-
-def get_feature_importance(model_name: str, models_dir: Path = MODELS_DIR) -> list[tuple[str, float]]:
-    """
-    Return top-10 (feature, importance) pairs for a given model.
-    model_name: 'facility' | 'day' | 'hour' | 'notification'
-    """
-    path = models_dir / f"{model_name}_model.json"
-    if model_name in ("facility", "day"):
-        m = xgb.XGBClassifier()
-    else:
-        m = xgb.XGBRegressor()
-    m.load_model(path)
-
-    names  = m.get_booster().feature_names
-    scores = m.feature_importances_
-    pairs  = sorted(zip(names, scores), key=lambda x: x[1], reverse=True)
-    return pairs[:10]
