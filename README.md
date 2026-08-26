@@ -31,6 +31,7 @@ The dataset, trained models, and evaluation results are committed to the reposit
 - [Prediction Outputs](#prediction-outputs)
 - [Feature Engineering](#feature-engineering)
 - [Model Pipeline](#model-pipeline)
+- [AI Explanation Layer](#ai-explanation-layer)
 - [Evaluation](#evaluation)
 - [Limitations](#limitations)
 
@@ -429,6 +430,18 @@ During training, actual target values flow into each subsequent model (teacher f
 - XGBoost `random_state`: `42`
 - All runs logged to MLflow with parameters, metrics, and model artifacts
 - `pyproject.toml` pins all dependency versions exactly
+
+---
+
+## AI Explanation Layer
+
+The **Resident Explorer** tab (Tab 3) includes an optional AI explanation powered by LangChain and Claude (`claude-haiku-4-5-20251001`). When a user clicks **Generate Explanation**, the app passes the resident's last 5 bookings, the four model predictions, and the top-10 XGBoost feature importances to Claude, which returns a 2–3 sentence natural language explanation grounded strictly in those signals. No RAG, no memory, no tools — pure prompt engineering. The feature is silently disabled if `ANTHROPIC_API_KEY` is not set; all other tabs remain fully functional.
+
+To enable it, add your key to a `.env` file in the project root:
+
+```bash
+echo "ANTHROPIC_API_KEY=your-key-here" > .env
+```
 
 ---
 
