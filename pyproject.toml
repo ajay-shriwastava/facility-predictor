@@ -22,6 +22,10 @@ dependencies = [
 ]
 
 [tool.poetry]
+name = "facility-predictor"
+version = "0.1.0"
+description = "Facility Usage Prediction System for residential communities"
+authors = ["Ajay Shriwastava <ashriwastava@gmail.com>"]
 packages = [{include = "facility_predictor", from = "src"}]
 
 [tool.poetry.group.dev.dependencies]
